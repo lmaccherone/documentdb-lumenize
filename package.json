@@ -1,0 +1,40 @@
+{
+  "name": "lumenize-documentdb",
+  "version": "0.1.0",
+  "description": "Aggregations (Group-by, Pivot-table, and N-dimensional Cube) and Time Series Transformations as Stored Procedures in DocumentDB",
+  "main": "lumenize-documentdb",
+  "scripts": {
+    "test": "nodeunit",
+    "prepublish": "cake compile"
+  },
+  "keywords": [
+    "Azure",
+    "DocumentDB",
+    "Time-Series",
+    "TimeSeries",
+    "Time Series",
+    "Aggregations",
+    "Aggregate",
+    "Stored-Procedures",
+    "StoredProcedures",
+    "Stored Procedures",
+    "OLAPCube",
+    "Cube",
+    "Pivot",
+    "Pivot-Table",
+    "PivotTable",
+    "Pivot Table",
+    "Group-By",
+    "GroupBy",
+    "Group By"
+  ],
+  "author": "Larry Maccherone",
+  "license": "Free for evaluation and non-comercial use. Contact for other licensing.",
+  "devDependencies": {
+    "coffee-script": "^1.9.2",
+    "nodeunit": "^0.9.1"
+  },
+  "dependencies": {
+    "lumenize": "^0.9.7"
+  }
+}

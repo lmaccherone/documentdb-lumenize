@@ -1,0 +1,6 @@
+# No .js in my repo. No .coffee in my npm
+# If you change this remember to change the cooresponding in .npmignore
+node_modules
+.idea
+*.js
+*.map
