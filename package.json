@@ -1,8 +1,8 @@
 {
-  "name": "lumenize-documentdb",
+  "name": "documentdb-lumenize",
   "version": "0.1.0",
   "description": "Aggregations (Group-by, Pivot-table, and N-dimensional Cube) and Time Series Transformations as Stored Procedures in DocumentDB",
-  "main": "lumenize-documentdb",
+  "main": "documentdb-lumenize",
   "scripts": {
     "test": "nodeunit",
     "prepublish": "cake compile"
@@ -30,11 +30,17 @@
   ],
   "author": "Larry Maccherone",
   "license": "Free for evaluation and non-comercial use. Contact for other licensing.",
+  "repository": {
+    "type": "git",
+    "url": "http://github.com/lmaccherone/documentdb-lumenize.git"
+  },
   "devDependencies": {
     "coffee-script": "^1.9.2",
-    "nodeunit": "^0.9.1"
+    "nodeunit": "^0.9.1",
+    "documentdb-mock": "^0.1.2"
   },
   "dependencies": {
-    "lumenize": "^0.9.7"
+    "lumenize": "^0.9.7",
+    "documentdb-utils": "^0.2.5"
   }
 }

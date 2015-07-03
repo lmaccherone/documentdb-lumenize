@@ -570,6 +570,7 @@ cube = (memo) ->
     ###
     utils.assert(a.f?, "'f' missing from specification: \n#{JSON.stringify(a, undefined, 4)}")
     if utils.type(a.f) == 'function'
+      throw new Error('User defined metric functions not supported in a stored procedure')
       utils.assert(a.as?, 'Must provide "as" field with your aggregation when providing a user defined function')
       a.metric = a.f.toString()
     else if functions[a.f]?
@@ -1371,31 +1372,15 @@ cube = (memo) ->
   context = getContext()
   collection = context.getCollection()
 
-  unless memo?
-    memo = {}
-  unless memo.count?
-    memo.count = 0
   unless memo.continuation?
     memo.continuation = null
-  unless memo.example?
-    memo.example = null
-
-  dimensions = [
-    {field: "ProjectHierarchy", type: 'hierarchy'},
-    {field: "Priority"}
-  ]
-
-  metrics = [
-    {field: "Points", f: "sum", as: "Scope"}
-  ]
-
-  config = {dimensions, metrics}
-  config.keepTotals = true
 
   if memo.savedCube?
     theCube = OLAPCube.newFromSavedState(memo.savedCube)
+  else if memo.cubeConfig?
+    theCube = new OLAPCube(memo.cubeConfig)
   else
-    theCube = new OLAPCube(config)
+    throw new Error('cubeConfig or savedCube required')
 
   memo.stillQueueing = true
 

@@ -1,4 +1,4 @@
-# lumenize-documentdb #
+# documentdb-lumenize #
 
 Copyright (c) 2015, Lawrence S. Maccherone, Jr.
 
@@ -6,12 +6,12 @@ _Aggregations (Group-by, Pivot-table, and N-dimensional Cube) and Time Series Tr
 
 **The bad news**: DocumentDB does not include aggregation capability.
 
-**The good news**: DocumentDB includes stored procedures and lumenize-documentdb uses this to add aggregation capability that far exceeds that which you are used to with SQL.
+**The good news**: DocumentDB includes stored procedures and documentdb-lumenize uses this to add aggregation capability that far exceeds that which you are used to with SQL.
 
 
 ## Source code ##
 
-* [Source Repository](https://github.com/lmaccherone/lumenize-documentdb)
+* [Source Repository](https://github.com/lmaccherone/documentdb-lumenize)
 
 
 ## Features ##
@@ -33,7 +33,7 @@ _Aggregations (Group-by, Pivot-table, and N-dimensional Cube) and Time Series Tr
 
 ## Install ##
 
-`npm install -save lumenize-documentdb`
+`npm install -save documentdb-lumenize`
 
 
 ## Usage ##
@@ -221,7 +221,7 @@ Lumenize.TimeInStateCalculator (and other calculators in Lumenize) use this tech
 * 0.1.0 - 2015-05-10 - Initial release
 
 
-## Contributing to lumenize-documentdb ##
+## Contributing to documentdb-lumenize ##
 
 
 

@@ -1,6 +1,5 @@
 generateData = (documentCount) ->
 
-
   possibleValues =
     ProjectHierarchy: [
       [1, 2, 3],
