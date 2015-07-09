@@ -29,12 +29,16 @@ _Aggregations (Group-by, Pivot-table, and N-dimensional Cube) and Time Series Tr
   * TimeSeriesCalculator - Show how aggregations changed over time. Visualize cumulative flow.
   * TimeInStateCalculator - See how long your entities spend in certain states. Calculate the ratio of wait to touch time. Find 98 percentile of lead time to set service level agreements.
   * TransitionsCalculator - Know the frequency of particular state transition and aggregstions of those transitions. How much work of type X was finished in each of the last 12 months? Throughput. Velocity.
- 
-
 
 ## Install ##
 
 `npm install -save documentdb-lumenize`
+
+or
+
+`bower install -save documentdb-lumenize`
+
+Note, the bower alternative only installs the stored-procedures.
 
 
 ## Usage ##
@@ -136,6 +140,7 @@ this time. You can rehydrate the cube in the browser or node.js by passing in th
     OLAPCube = require('lumenize').OLAPCube
     cube = OLAPCube.newFromSavedState(savedCube)
 
+You can check out the [full documentation for the Lumenize OLAPCube](http://commondatastorage.googleapis.com/versions.lumenize.com/docs/lumenize-docs/index.html#!/api/Lumenize.OLAPCube), but here are some examples.
 `getCell()` allows you to extract a single cell. The "total" cell for all facts where Priority = 1 can be found as follows:
 
     console.log(cube.getCell({Priority: 1}))
@@ -259,8 +264,6 @@ let's say you have a list of events:
 
 You could figure out the number of events active in each month by specifying "activeMonths" as a dimension.
 Lumenize.TimeInStateCalculator (and other calculators in Lumenize) use this technique.
-    ###
-
 
 
 ## Changelog ##
@@ -271,7 +274,9 @@ Lumenize.TimeInStateCalculator (and other calculators in Lumenize) use this tech
 
 ## Contributing to documentdb-lumenize ##
 
+At this point, I have a pretty long list of things to add to documentdb-lumenize. Namely the time-series calculators from Lumenize. 
 
+Before I do all that, I want to do some performance and load testing. My theory is that moving the code to the data rather than streaming the data out over the wire for analysis will be much more efficient, but the execution semantics of stored procedures isolation as well as RU based throttling differences could possibly make it slower. I need to setup a way for testing this. Any help with this sort of load testing would be greatly appreciated.
 
 
 ## License ##
