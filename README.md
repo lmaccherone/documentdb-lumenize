@@ -265,6 +265,7 @@ Lumenize.TimeInStateCalculator (and other calculators in Lumenize) use this tech
 
 ## Changelog ##
 
+* 0.2.0 - 2015-07-07 - Tests using documentdb-mock, syntactic sugar for groupBy
 * 0.1.0 - 2015-05-10 - Initial release
 
 
