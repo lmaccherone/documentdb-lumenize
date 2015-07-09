@@ -1,7 +1,7 @@
 documentDBUtils = require('documentdb-utils')
 {csvStyleArray_To_ArrayOfMaps, table, OLAPCube} = require('lumenize')
 
-{cube} = require('./cube')
+{cube} = require('./stored-procedures/cube')
 
 dimensions = [
   {field: "ProjectHierarchy", type: 'hierarchy'},

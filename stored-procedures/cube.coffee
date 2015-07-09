@@ -911,7 +911,7 @@ cube = (memo) ->
       @param {Object} config See Config options for details. DO NOT change the config settings after the OLAP class is instantiated.
       @param {Object[]} [facts] Optional parameter allowing the population of the OLAPCube with an intitial set of facts
         upon instantiation. Use addFacts() to add facts after instantiation.
-      @cfg {Object[]} dimensions Array which specifies the fields to use as dimension fields. If the field contains a
+      @cfg {Object[]} [dimensions] Array which specifies the fields to use as dimension fields. If the field contains a
         hierarchy array, say so in the row, (e.g. `{field: 'SomeFieldName', type: 'hierarchy'}`). Any array values that it
         finds in the supplied facts will be assumed to be tags rather than a hierarchy specification unless `type: 'hierarchy'`
         is specified.
@@ -935,6 +935,14 @@ cube = (memo) ->
 
         Notice how a keepTotals can be set for an individual dimension. This is preferable to setting it for the entire
         cube in cases where you don't want totals in all dimensions.
+
+        If no dimension config is provided, then you must use syntactic sugar like groupBy.
+
+      @cfg {String} [groupBy] Syntactic sugar for single-dimension/single-metric usage.
+      @cfg {String} [f] Syntactic sugar for single-dimension/single-metric usage. If provided, you must also provide
+        a `groupBy` config. If you provided a `groupBy` but no `f` or `field`, then the default `count` metric will be used.
+      @cfg {String} [field] Syntactic sugar for single-dimension/single-metric usage. If provided, you must also provide
+        a `groupBy` config. If you provided a `groupBy` but no `f` or `field`, then the default `count` metric will be used.
 
       @cfg {Object[]} [metrics=[]] Array which specifies the metrics to calculate for each cell in the cube.
 
@@ -976,12 +984,20 @@ cube = (memo) ->
         Maybe some day, I'll write the code to analyze your metrics and move them out to here if it improves efficiency.
       ###
       @config = utils.clone(@userConfig)
-      utils.assert(@config.dimensions?, 'Must provide config.dimensions.')
-      unless @config.metrics?
-        @config.metrics = []
       @cells = []
       @cellIndex = {}
       @currentValues = {}
+
+      # Syntactic sugar for groupBy
+      if @config.groupBy?
+        @config.dimensions = [{field: @config.groupBy}]
+        if @config.f? and @config.field?
+          @config.metrics = [{field: @config.field, f: @config.f}]
+
+      utils.assert(@config.dimensions?, 'Must provide config.dimensions.')
+      unless @config.metrics?
+        @config.metrics = []
+
       @_dimensionValues = {}  # key: fieldName, value: {} where key: uniqueValue, value: the real key (not stringified)
       for d in @config.dimensions
         @_dimensionValues[d.field] = {}
@@ -998,6 +1014,15 @@ cube = (memo) ->
           d.keepTotals = false
 
       functions.expandMetrics(@config.metrics, true, true)
+
+      # Set required fields
+      requiredFieldsObject = {}
+      for m in @config.metrics
+        if m.field?.length > 0  # Should only be false if function is count
+          requiredFieldsObject[m.field] = null
+      for d in @config.dimensions
+        requiredFieldsObject[d.field] = null
+      @requiredFields = (key for key, value of requiredFieldsObject)
 
       @summaryMetrics = {}
 
@@ -1123,9 +1148,15 @@ cube = (memo) ->
             fact[fieldName] = d.f(fact)
 
       for fact in facts
-        @currentValues = {}
-        expandedFactArray = @_expandFact(fact)
-        @_mergeExpandedFactArray(expandedFactArray)
+        missingFields = @calculateMissingFields(fact)
+        if missingFields.length is 0
+          @currentValues = {}
+          expandedFactArray = @_expandFact(fact)
+          @_mergeExpandedFactArray(expandedFactArray)
+        else
+          unless memo.warnings?
+            memo.warnings = []
+          memo.warnings.push({type: 'Missing fields', missingFields, fact})
 
       # deriveFieldsOnOutput for @dirtyRows
       if @config.deriveFieldsOnOutput?
@@ -1139,6 +1170,13 @@ cube = (memo) ->
       @dirtyRows = {}
 
       return this
+
+    calculateMissingFields: (fact) ->
+      missingFields = []
+      for field in @requiredFields
+        unless fact[field]?
+          missingFields.push(field)
+      return missingFields
 
     getCells: (filterObject) ->
       ###
@@ -1400,11 +1438,7 @@ cube = (memo) ->
     if err?
       throw new Error(JSON.stringify(err))
 
-    filtered = []
-    for row in resources
-      if row.ProjectHierarchy?
-        filtered.push(row)
-    theCube.addFacts(filtered)
+    theCube.addFacts(resources)
     memo.savedCube = theCube.getStateForSaving()
     memo.example = resources[0]
     if options.continuation?

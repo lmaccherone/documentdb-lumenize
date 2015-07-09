@@ -40,7 +40,7 @@
     "documentdb-mock": "^0.1.2"
   },
   "dependencies": {
-    "lumenize": "^0.9.7",
-    "documentdb-utils": "^0.2.5"
+    "documentdb-utils": "^0.2.5",
+    "lumenize": "^0.9.8"
   }
 }

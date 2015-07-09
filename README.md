@@ -19,11 +19,12 @@ _Aggregations (Group-by, Pivot-table, and N-dimensional Cube) and Time Series Tr
   
 ### Working ###
 
-* Fast, light, flexible OLAP Cube with hierarchical rollup support
+* Fast, light, flexible OLAP Cube with hierarchical rollup support running inside your DocumentDB collections for super-fast results.
+* Syntactic sugar for single-metric/single-dimension group by.
 
 ### Unimplemented ###
 
-* Syntactic sugar for simple group by and pivot table use. Note, a group-by is just a one-dimensional OLAP cube and a pivot table is just a two-dimensional one, so you can do them now. It just might be nice to have PivotTable and GroupBy classes that will make dimension assumptions.
+* Syntactic sugar for single-metric pivot table. Note, a pivot table is just a two-dimensional cube, so you can do them now. It just might be nice to have a convenient way for simple aggregations.
 * Turn DocumentDB into a powerful time-series database and analysis engine. The Lumenize calculators do their thing by calling the Lumenize OLAPCube so it should be easy to get them to run on top of the stored procedure version of the OLAP Cube.
   * TimeSeriesCalculator - Show how aggregations changed over time. Visualize cumulative flow.
   * TimeInStateCalculator - See how long your entities spend in certain states. Calculate the ratio of wait to touch time. Find 98 percentile of lead time to set service level agreements.
@@ -40,13 +41,54 @@ _Aggregations (Group-by, Pivot-table, and N-dimensional Cube) and Time Series Tr
 
 ### A simple group by example ###
 
+Let's assume this is the only data in your collection.
 
+    [
+      {id: 1, value: 10}
+      {id: 1, value: 100}
+      {id: 2, value: 20}
+      {id: 3, value: 30}
+    ]
+
+Now, let's call the cube with the folling:
+    
+    {cubeConfig: {groupBy: 'id', field: "value", f: "sum"}}
+  
+After you call the cube stored procedure, you should expect this to be in the `savedCube.cellsAsCSVStyleArray` parameter of the response. Note, the _count metric is always
+calculated even when not specified.
+
+    [
+      [ 'id', '_count', 'value_sum' ],
+      [   1,         2,         110 ],
+      [   2,         1,          20 ],
+      [   3,         1,          30 ]
+    ]
+
+### Providing a filterQuery ###
+
+Now, let's assume the same set of facts in the collection, but we add a `filterQuery`
+
+    cubeConfig = {groupBy: 'id', field: "value", f: "sum"}
+    filterQuery = 'SELECT * FROM Facts f WHERE f.id = 1'
+
+And we call the cube stored procedure with
+
+    {cubeConfig: cubeConfig, filterQuery: filterQuery}
+
+You should expect to see this in the `savedCube.cellsAsCSVStyleArray` parameter that is returned.
+
+    [
+      [ 'id', '_count', 'value_sum' ],
+      [    1,        2,         110 ]
+    ]
+    
+Note, when you compose your `filterQuery` you must make sure that all the expected fields are returned.
 
 ### A hierarchical pivot table (2D OLAPCube) example ###
 
-Let's walk through a simple 2D example from facts to output. Let's say you have this set of facts:
+Let's walk through a simple 2D example from facts to output. Let's say you have this set of facts in your collection or returned with your `filterQuery`:
 
-    facts = [
+    [
       {ProjectHierarchy: [1, 2, 3], Priority: 1, Points: 10},
       {ProjectHierarchy: [1, 2, 4], Priority: 2, Points: 5 },
       {ProjectHierarchy: [5]      , Priority: 1, Points: 17},
@@ -77,17 +119,22 @@ You can use any of the aggregation functions found in Lumenize.functions. Whethe
 
 Next, we build the config parameter from our dimension and metrics specifications.
 
-    config = {dimensions, metrics}
+    cubeConfig = {dimensions: dimensions, metrics: metrics}
 
 Hierarchy dimensions automatically roll up but you can also tell it to keep all totals by setting config.keepTotals to true. The totals are then kept in the cells where one or more of the dimension values are set to `null`. Note, you can also set keepTotals for individual dimension and should probably use that if you have more than a few dimensions
 but we're going to set it globally here:
 
     config.keepTotals = true
 
-Now, let's create the cube and feed it the facts.
+Now, let's call our cube stored procedure with the following:
 
-    {OLAPCube} = require('../')
-    cube = new OLAPCube(config, facts)
+    {cubeConfig: config}
+    
+We can inspect `savedCube.cellsAsCSVStyleArray` like we did in the simple groupBy examples above, but let's use the full power of Lumenize's OLAP cube to get the output of the results
+this time. You can rehydrate the cube in the browser or node.js by passing in the value returned as `savedCube` into Lumenize's `OLAPCube.newFromSavedState`.
+
+    OLAPCube = require('lumenize').OLAPCube
+    cube = OLAPCube.newFromSavedState(savedCube)
 
 `getCell()` allows you to extract a single cell. The "total" cell for all facts where Priority = 1 can be found as follows:
 
@@ -106,7 +153,7 @@ If you wanted the cell where ProjectHierarchy is [5] and priority is 1, that wou
     console.log(cube.getCell({ProjectHierarchy: [5], Priority: 1}))
     # { ProjectHierarchy: [ 5 ], Priority: 1, _count: 1, Scope: 17 }
 
-`getCell()` uses the cellIndex so it's very efficient. Using `getCell()` and `getDimensionValues()`, you can extract exactly what you want from the OLAPCube or you can use the `slice()` method to pull out the data in a format that is ideall suited to graphing.
+`getCell()` uses the cellIndex so it's very efficient. Using `getCell()` and `getDimensionValues()`, you can extract exactly what you want from the OLAPCube or you can use the `slice()` method to pull out the data in a format that is ideally suited to graphing.
     
 You can call the `toString()` method which extracts a 1D or 2D slice for tabular display. 
 

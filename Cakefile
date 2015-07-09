@@ -1,4 +1,5 @@
 fs = require('fs')
+path = require('path')
 spawnSync = require('child_process').spawnSync
 
 runSync = (command, options, next) ->
@@ -24,11 +25,21 @@ runSyncRaw = (command, options) ->
   return {stderr, stdout}
 
 task('compile', 'Compile CoffeeScript source files to JavaScript', () ->
+  invoke('update-bower-version')
   process.chdir(__dirname)
   fs.readdir('./', (err, contents) ->
     files = ("#{file}" for file in contents when (file.indexOf('.coffee') > 0))
     runSync('coffee', ['-c'].concat(files))
   )
+  if fs.existsSync('stored-procedures')
+    fs.readdir('stored-procedures', (err, contents) ->
+      for file in contents when (file.indexOf('.coffee') > 0)
+        baseName = file.substr(0, file.indexOf('.coffee'))
+        filePath = path.join(__dirname, 'stored-procedures', baseName)
+        sprocJS = require(filePath)[baseName]
+        outFilePath = path.join(__dirname, 'stored-procedures', baseName + '.string')
+        fs.writeFileSync(outFilePath, sprocJS.toString(), 'utf8')
+    )
 )
 
 task('test', 'UNIMPLEMENTED - Run the CoffeeScript test suite with nodeunit', () ->
@@ -75,5 +86,11 @@ task('publish', 'Publish to npm and add git tags', () ->
     else
       console.error('`git status --porcelain` was not clean. Not publishing.')
   )
+)
+
+task('update-bower-version', 'Update bower.json with the version number specified in package.json', () ->
+  bowerJSON = require('./bower.json')
+  bowerJSON.version = require('./package.json').version
+  fs.writeFileSync("./bower.json", JSON.stringify(bowerJSON, null, 2))
 )
 
