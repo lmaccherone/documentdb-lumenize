@@ -22,9 +22,12 @@ _Aggregations (Group-by, Pivot-table, and N-dimensional Cube) and Time Series Tr
 * Fast, light, flexible OLAP Cube with hierarchical rollup support running inside your DocumentDB collections for super-fast results.
 * Syntactic sugar for single-metric/single-dimension group by.
 
-### Unimplemented ###
+### Wish list ###
 
 * Syntactic sugar for single-metric pivot table. Note, a pivot table is just a two-dimensional cube, so you can do them now. It just might be nice to have a convenient way for simple aggregations.
+* deriveFieldsOnOutput/Input functionality using string function names.
+* A way to specify a slice, min, max, etc. as the output. This would be especially useful for folks who are not using node.js where they can simply reload the savedCube locally to get that functionality.
+* Maybe a C# version of the client-side functionality that I now have by using the full Lumenize.OLAPCube.
 * Turn DocumentDB into a powerful time-series database and analysis engine. The Lumenize calculators do their thing by calling the Lumenize OLAPCube so it should be easy to get them to run on top of the stored procedure version of the OLAP Cube.
   * TimeSeriesCalculator - Show how aggregations changed over time. Visualize cumulative flow.
   * TimeInStateCalculator - See how long your entities spend in certain states. Calculate the ratio of wait to touch time. Find 98 percentile of lead time to set service level agreements.
@@ -43,6 +46,51 @@ Note, the bower alternative only installs the stored-procedures.
 
 ## Usage ##
 
+### Pushing the stored procedure(s) into DocumentDB and executing it ###
+
+There are several ways to get the stored procedure(s) into your DocumentationDB collection and execute it. 
+
+* When using node.js, the easiest is to use documentdb-utils, but there are two ways to even do that:
+
+  * `require` the stored procedure and pass it in to documentdb-utils with the `storedProcedureJS` config field.
+  
+          documentDBUtils = require('documentdb-utils')
+          {OLAPCube} = require('lumenize')
+    
+          {cube} = require('./stored-procedures/cube')
+          
+          cubeConfig = <your aggregation configuration (see below)>
+    
+          config =
+            databaseID: 'test-stored-procedure'
+            collectionID: 'testing-s3'
+            storedProcedureID: 'cube'
+            storedProcedureJS: cube
+            memo: {cubeConfig}
+            debug: false
+    
+          processResponse = (err, response) ->
+            if err?
+              throw new Error(JSON.stringify(err))
+            console.log(response.stats)
+            cube = OLAPCube.newFromSavedState(response.memo.savedCube)
+            console.log(cube.toString())
+    
+          documentDBUtils(config, processResponse)
+          
+  * There is a stringified version of the cube code under `stored-procedures/cube.string`. You can load this file into a String using `fs.readFileSync()` and send this string in to documentdb-utils with the `storedProcedureJS` config field.
+  
+    This would basically look the same as the first example, but replace this line:
+    
+        {cube} = require('./stored-procedures/cube')
+        
+    With this line:
+    
+        cube = require('fs').readFileSync('./stored-procedures/cube.string', 'utf8')
+  
+* If you are using .NET or the REST API from some other platform, then you can load the stringified version using the file read capabilities of that platform and send it using your .NET or REST API. Note, that if the stored procedure hits the timeout before it's done
+going through all of the data specified by your filterQuery, it will return with a partially aggregated results and a continuation token. Merely pass back in (after any specified `x-ms-retry-after-ms`) the memo object that came back in the response body as the parameter to the next call of the stored procedure. It will take care of continuing right where it left off. When using documentdb-utils, this delay and retry logic is automatically taken care of for you among other niceties.
+
 ### A simple group by example ###
 
 Let's assume this is the only data in your collection.
@@ -54,7 +102,7 @@ Let's assume this is the only data in your collection.
       {id: 3, value: 30}
     ]
 
-Now, let's call the cube with the folling:
+Now, let's call the cube with the following:
     
     {cubeConfig: {groupBy: 'id', field: "value", f: "sum"}}
   
@@ -67,6 +115,27 @@ calculated even when not specified.
       [   2,         1,          20 ],
       [   3,         1,          30 ]
     ]
+
+### Available aggregation functions ###
+
+All of the [Lumenize aggregation functions](http://commondatastorage.googleapis.com/versions.lumenize.com/docs/lumenize-docs/index.html#!/api/Lumenize.functions) are supported including but not limited to:
+
+* `sum`
+* `count`
+* `average`
+* `max`
+* `min`
+* `median`
+* `standardDeviation`
+* `variance`
+* `product` (careful, this can overflow fast)
+* `sumSquares`
+* `sumCubes`
+* `values`
+* `uniqueValues`
+* and, any percentile by simply using using the string `p<your-percentile>` (e.g. `p75`, which is the upper quartile)
+
+Please note that when using any metric that cannot be incrementally calculated (median and percentiles in the list above), for large aggregations, it's more efficient to use the cube with a `values` metric and calculate it after the fact. You can call `Lumenize.functions.median(values)` for each cell in the cube that returned. The deriveFieldsOnOutput functionality of the full Lumenize.OLAPCube is not supported yet in this stored-procedure form.
 
 ### Providing a filterQuery ###
 
@@ -128,11 +197,11 @@ Next, we build the config parameter from our dimension and metrics specification
 Hierarchy dimensions automatically roll up but you can also tell it to keep all totals by setting config.keepTotals to true. The totals are then kept in the cells where one or more of the dimension values are set to `null`. Note, you can also set keepTotals for individual dimension and should probably use that if you have more than a few dimensions
 but we're going to set it globally here:
 
-    config.keepTotals = true
+    cubeConfig.keepTotals = true
 
 Now, let's call our cube stored procedure with the following:
 
-    {cubeConfig: config}
+    {cubeConfig: cubeConfig}
     
 We can inspect `savedCube.cellsAsCSVStyleArray` like we did in the simple groupBy examples above, but let's use the full power of Lumenize's OLAP cube to get the output of the results
 this time. You can rehydrate the cube in the browser or node.js by passing in the value returned as `savedCube` into Lumenize's `OLAPCube.newFromSavedState`.
@@ -268,7 +337,8 @@ Lumenize.TimeInStateCalculator (and other calculators in Lumenize) use this tech
 
 ## Changelog ##
 
-* 0.2.1 - 2015-07-07 - Documenation tweaks
+* 0.2.2 - 2015-07-09 - Documentation upgrades and more testing
+* 0.2.1 - 2015-07-07 - Documentation tweaks
 * 0.2.0 - 2015-07-07 - Tests using documentdb-mock, syntactic sugar for groupBy
 * 0.1.0 - 2015-05-10 - Initial release
 

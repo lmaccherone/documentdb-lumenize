@@ -1,7 +1,9 @@
+fs = require('fs')
 documentDBUtils = require('documentdb-utils')
-{csvStyleArray_To_ArrayOfMaps, table, OLAPCube} = require('lumenize')
+{OLAPCube} = require('lumenize')
 
-{cube} = require('./stored-procedures/cube')
+#{cube} = require('./stored-procedures/cube')
+cube = fs.readFileSync('./stored-procedures/cube.string', 'utf8')
 
 dimensions = [
   {field: "ProjectHierarchy", type: 'hierarchy'},
@@ -15,13 +17,16 @@ metrics = [
 cubeConfig = {dimensions, metrics}
 cubeConfig.keepTotals = true
 
+filterQuery = 'SELECT * FROM Facts WHERE Facts.Priority = 1'
+#filterQuery = null
+
 config =
   databaseID: 'test-stored-procedure'
   collectionID: 'testing-s3'
   storedProcedureID: 'cube'
   storedProcedureJS: cube
-  memo: {cubeConfig}
-  debug: false
+  memo: {cubeConfig, filterQuery}
+  debug: true
 
 processResponse = (err, response) ->
   console.log(response.stats)
