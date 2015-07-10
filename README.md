@@ -24,7 +24,9 @@ _Aggregations (Group-by, Pivot-table, and N-dimensional Cube) and Time Series Tr
 
 ### Wish list ###
 
+* Automatically send back an additional output with just an array for the one metric specified by a simple groupBy.
 * Syntactic sugar for single-metric pivot table. Note, a pivot table is just a two-dimensional cube, so you can do them now. It just might be nice to have a convenient way for simple aggregations.
+* Allow for parameterization of filterQuery
 * deriveFieldsOnOutput/Input functionality using string function names.
 * A way to specify a slice, min, max, etc. as the output. This would be especially useful for folks who are not using node.js where they can simply reload the savedCube locally to get that functionality.
 * Maybe a C# version of the client-side functionality that I now have by using the full Lumenize.OLAPCube.
@@ -41,7 +43,7 @@ or
 
 `bower install -save documentdb-lumenize`
 
-Note, the bower alternative only installs the stored-procedures.
+Note, the bower alternative only installs the stored-procedures in `.string` form.
 
 
 ## Usage ##
@@ -89,7 +91,7 @@ There are several ways to get the stored procedure(s) into your DocumentationDB 
         cube = require('fs').readFileSync('./stored-procedures/cube.string', 'utf8')
   
 * If you are using .NET or the REST API from some other platform, then you can load the stringified version using the file read capabilities of that platform and send it using your .NET or REST API. Note, that if the stored procedure hits the timeout before it's done
-going through all of the data specified by your filterQuery, it will return with a partially aggregated results and a continuation token. Merely pass back in (after any specified `x-ms-retry-after-ms`) the memo object that came back in the response body as the parameter to the next call of the stored procedure. It will take care of continuing right where it left off. When using documentdb-utils, this delay and retry logic is automatically taken care of for you among other niceties.
+going through all of the data specified by your filterQuery, it will return with partially aggregated results and a continuation token. Merely pass back in (after any specified `x-ms-retry-after-ms`) the memo object that came back in the response body as the parameter to the next call of the stored procedure. It will take care of continuing right where it left off. When using documentdb-utils, this delay and retry logic is automatically taken care of for you among other niceties.
 
 ### A simple group by example ###
 
@@ -135,7 +137,7 @@ All of the [Lumenize aggregation functions](http://commondatastorage.googleapis.
 * `uniqueValues`
 * and, any percentile by simply using using the string `p<your-percentile>` (e.g. `p75`, which is the upper quartile)
 
-Please note that when using any metric that cannot be incrementally calculated (median and percentiles in the list above), for large aggregations, it's more efficient to use the cube with a `values` metric and calculate it after the fact. You can call `Lumenize.functions.median(values)` for each cell in the cube that returned. The deriveFieldsOnOutput functionality of the full Lumenize.OLAPCube is not supported yet in this stored-procedure form.
+Please note that when using any metric that cannot be incrementally calculated (median and percentiles in the list above), for large aggregations, it's more efficient to use the cube with a `values` metric and calculate your median or percentile after the fact. You can call `Lumenize.functions.median(values)` for each cell in the cube that returned. The deriveFieldsOnOutput functionality of the full Lumenize.OLAPCube is not supported yet in this stored-procedure form.
 
 ### Providing a filterQuery ###
 
@@ -169,7 +171,7 @@ Let's walk through a simple 2D example from facts to output. Let's say you have 
     ]
 
 The ProjectHierarchy field models its hierarchy (tree) as an array containing a
-[materialized path](http://en.wikipedia.org/wiki/Materialized_path). The first fact is "in" Project 3 whose parent is Project 2, whose parent is Project 1. The second fact is "in" Project 4 whose parent is Project 2 which still has Project 1 as its parent. Project 5 is another root Project like Project 1; and the fourth fact is "in" Project 2.
+materialized path. The first fact is "in" Project 3 whose parent is Project 2, whose parent is Project 1. The second fact is "in" Project 4 whose parent is Project 2 which still has Project 1 as its parent. Project 5 is another root Project like Project 1; and the fourth fact is "in" Project 2.
 
 So the first fact will roll-up the tree and be aggregated against [1], and [1, 2] as well as [1, 2, 3]. Root Project 1 will get the data from all but the third fact which will get aggregated against root Project 5.
 
@@ -188,7 +190,7 @@ You can specify any number of metrics to be calculated for each cell in the cube
       {field: "Points", f: "sum", as: "Scope"}
     ]
 
-You can use any of the aggregation functions found in Lumenize.functions. Whether you specify it or not, the count metric is automatically tracked for each cell. The `as` specification is optional. If missing, it will build the name of the resulting metric from the field name and the function name. So without the `as: "Scope"` the second metric in the example above would have been named "Points_sum".
+You can use any of the aggregation functions found in Lumenize.functions. Whether you specify it or not, the count metric is automatically tracked for each cell. The `as` specification is optional. If missing, it will build the name of the resulting metric from the field name and the function name. So without the `as: "Scope"` the second metric in the example above would have been named `Points_sum`.
 
 Next, we build the config parameter from our dimension and metrics specifications.
 
@@ -266,7 +268,7 @@ to the dimensions row like this:
 ## Hierarchical (tree) data ##
 
 This OLAP Cube implementation assumes your hierarchies (trees) are modeled as a
-[materialized path](http://en.wikipedia.org/wiki/Materialized_path) array. This approach is commonly used with NoSQL databases like
+materialized path array. This approach is commonly used with NoSQL databases like
 [CouchDB](http://probablyprogramming.com/2008/07/04/storing-hierarchical-data-in-couchdb) and
 [MongoDB (combining materialized path and array of ancestors)](http://docs.mongodb.org/manual/tutorial/model-tree-structures/)
 and even SQL databases supporting array types like [Postgres](http://justcramer.com/2012/04/08/using-arrays-as-materialized-paths-in-postgres/).
@@ -279,43 +281,6 @@ predetermined ranges of values in a single field (date example --> level 0: year
 However, the approach used by this OLAPCube implementaion is the more general case, because it can easily simulate
 fixed/named level hierachies whereas the reverse is not true. In the clothing example above, you would simply key
 your dimension off of a derived field that was a combination of the SEX and TYPE columns (e.g. ['mens', 'pants'])
-
-## Date/Time hierarchies ##
-
-Lumenize is designed to work well with the tzTime library. Here is an example of taking a bunch of ISOString data
-and doing timezone precise hierarchical roll up based upon the date segments (year, month).
-
-    data = [
-      {date: '2011-12-31T12:34:56.789Z', value: 10},
-      {date: '2012-01-05T12:34:56.789Z', value: 20},
-      {date: '2012-01-15T12:34:56.789Z', value: 30},
-      {date: '2012-02-01T00:00:01.000Z', value: 40},
-      {date: '2012-02-15T12:34:56.789Z', value: 50},
-    ]
-
-    {Time} = require('../')
-
-    config =
-      deriveFieldsOnInput: [{
-        field: 'dateSegments',
-        f: (row) ->
-          return new Time(row.date, Time.MONTH, 'America/New_York').getSegmentsAsArray()
-      }]
-      metrics: [{field: 'value', f: 'sum'}]
-      dimensions: [{field: 'dateSegments', type: 'hierarchy'}]
-
-    cube = new OLAPCube(config, data)
-    console.log(cube.toString(undefined, undefined, 'value_sum'))
-    # | dateSegments | value_sum |
-    # |==========================|
-    # | [2011]       |        10 |
-    # | [2011,12]    |        10 |
-    # | [2012]       |       140 |
-    # | [2012,1]     |        90 |
-    # | [2012,2]     |        50 |
-
-Notice how '2012-02-01T00:00:01.000Z' got bucketed in January because the calculation was done in timezone
-'America/New_York'.
 
 ## Non-hierarchical Array fields ##
 
