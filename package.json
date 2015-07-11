@@ -36,8 +36,9 @@
   },
   "devDependencies": {
     "coffee-script": "^1.9.2",
-    "nodeunit": "^0.9.1",
-    "documentdb-mock": "^0.1.2"
+    "documentdb": "^1.1.0",
+    "documentdb-mock": "^0.1.2",
+    "nodeunit": "^0.9.1"
   },
   "dependencies": {
     "documentdb-utils": "^0.2.5",

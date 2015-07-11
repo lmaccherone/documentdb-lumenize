@@ -157,7 +157,7 @@ You should expect to see this in the `savedCube.cellsAsCSVStyleArray` parameter 
       [    1,        2,         110 ]
     ]
     
-Note, when you compose your `filterQuery` you must make sure that all the expected fields are returned.
+It's possible to pass in an Object containing both a parameterized string for the filterQuery and the parameters as specified [here](http://dl.windowsazure.com/documentDB/nodedocs/global.html#SqlQuerySpec). Note, when you compose your `filterQuery` you must make sure that all the expected fields are returned.
 
 ### A hierarchical pivot table (2D OLAPCube) example ###
 
