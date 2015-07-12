@@ -302,6 +302,7 @@ Lumenize.TimeInStateCalculator (and other calculators in Lumenize) use this tech
 
 ## Changelog ##
 
+* 0.2.3 - 2015-07-12 - Made the cube available from `require('documentdb-lumenize).cube`
 * 0.2.2 - 2015-07-09 - Documentation upgrades and more testing
 * 0.2.1 - 2015-07-07 - Documentation tweaks
 * 0.2.0 - 2015-07-07 - Tests using documentdb-mock, syntactic sugar for groupBy

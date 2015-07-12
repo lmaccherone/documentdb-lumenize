@@ -4,7 +4,7 @@ documentDBUtils = require('documentdb-utils')
 DocumentClient = require("documentdb").DocumentClient
 
 filterQuery = 'SELECT * FROM Facts WHERE Facts.Priority = 1'
-#  filterQuery = null
+#filterQuery = null
 
 dimensions = [
   {field: "ProjectHierarchy", type: 'hierarchy'},
@@ -18,51 +18,85 @@ metrics = [
 cubeConfig = {dimensions, metrics}
 cubeConfig.keepTotals = true
 
-usingStoredProcedure = () ->
+results = {}
 
-  {cube} = require('./stored-procedures/cube')
-  #cube = fs.readFileSync('./stored-procedures/cube.string', 'utf8')
+run = () ->
 
-  config =
-    databaseID: 'test-stored-procedure'
-    collectionID: 'testing-s3'
-    storedProcedureID: 'cube'
-    storedProcedureJS: cube
-    memo: {cubeConfig, filterQuery}
-    debug: false
+  usingStoredProcedure = () ->
 
-  processResponse = (err, response) ->
-    console.log(response.stats)
-    cube = OLAPCube.newFromSavedState(response.memo.savedCube)
-    console.log(cube.toString(null, null, 'Scope'))
-    if err?
-      throw new Error(JSON.stringify(err))
+    {cube} = require('./stored-procedures/cube')
+    #cube = fs.readFileSync('./stored-procedures/cube.string', 'utf8')
 
-    readingDirectly(response.collectionLink)
+    config =
+      databaseID: 'test-stored-procedure'
+      collectionID: 'testing-s3'
+      storedProcedureID: 'cube'
+      storedProcedureJS: cube
+      memo: {cubeConfig, filterQuery}
+      debug: false
 
-  documentDBUtils(config, processResponse)
+    processResponse = (err, response) ->
+      console.log(response.stats)
+      cube = OLAPCube.newFromSavedState(response.memo.savedCube)
+      console.log(cube.toString(null, null, 'Scope'))
+      if err?
+        throw new Error(JSON.stringify(err))
 
-readingDirectly = (collectionLink) ->
-  console.time('readingDirectly')
-  console.log(collectionLink)
-  totalRequestCharges = 0
-  client = new DocumentClient(process.env.DOCUMENT_DB_URL, {masterKey: process.env.DOCUMENT_DB_KEY})
+      results.spTime = response.stats.executionTime
+      results.spRUs = response.stats.totalRequestCharges
 
-  client.queryDocuments(collectionLink, filterQuery, {maxItemCount: 1000}).toArray((err, resources, header) ->
-    if err?
-      console.log(JSON.stringify(err))
-    console.log(resources.length)
-    console.log(header)
-    console.timeEnd('readingDirectly')
-    cube = new OLAPCube(cubeConfig, resources)
-    console.log(cube.toString(null, null, 'Scope'))
-    console.timeEnd('readingDirectly')
-  )
+      readingDirectly(response.collectionLink)
 
-collectionLink = 'dbs/dF0DAA==/colls/dF0DAO918AA=/'
+    documentDBUtils(config, processResponse)
 
-usingStoredProcedure()
+  runAfter = (delay, f) ->
+    setTimeout(f, delay)
 
-#readingDirectly(collectionLink)
+  readingDirectly = (collectionLink) ->
+    console.time('readingDirectly')
+    console.log(collectionLink)
+    totalRequestCharges = 0
+    startTime = new Date()
+    client = new DocumentClient(process.env.DOCUMENT_DB_URL, {masterKey: process.env.DOCUMENT_DB_KEY})
+    cube = new OLAPCube(cubeConfig)
 
+    processNextPage = (err, resources, header) ->
+      if err? and err.code is 429
+        delay = Number(header['x-ms-retry-after-ms']) or 0
+        runAfter(delay, () ->
+          iterator.executeNext(processNextPage)
+        )
+      else if err?
+        console.log(JSON.stringify(err))
+      console.log(resources.length)
+      totalRequestCharges += Number(header['x-ms-request-charge'])
+      console.log(totalRequestCharges)
+      cube.addFacts(resources)
+      if iterator.hasMoreResults()
+        iterator.executeNext(processNextPage)
+      else
+  #      console.log(header)
+        console.log(cube.toString(null, null, 'Scope'))
+        console.timeEnd('readingDirectly')
+        console.log('Total RUs: ', totalRequestCharges)
+        results.directTime = new Date() - startTime
+        results.directRUs = totalRequestCharges
+        console.log('\n')
+        console.log(results)
+
+
+    if filterQuery?
+      iterator = client.queryDocuments(collectionLink, filterQuery, {maxItemCount: 1000})
+    else
+      iterator = client.readDocuments(collectionLink, {maxItemCount: 1000})
+
+    iterator.executeNext(processNextPage)
+
+
+
+  collectionLink = 'dbs/dF0DAA==/colls/dF0DAO918AA=/'
+
+  usingStoredProcedure()
+
+run()
 
