@@ -8,6 +8,14 @@ _Aggregations (Group-by, Pivot-table, and N-dimensional Cube) and Time Series Tr
 
 **The good news**: DocumentDB includes stored procedures and documentdb-lumenize uses this to add aggregation capability that far exceeds that which you are used to with SQL.
 
+UPDATE: I have been able to run some latency and throughput performance testing and I'm excited to be able to say that documentdb-lumenize has huge latency and bandwidth benefits with only slight penalty in request units (theoretically reduction in peak throughput). Here is a summary of my experiments:
+
+* Aggregations of 10,000 documents in 1.3-1.5 seconds.
+* 5x-7x reduction in latency for remote execution over a 20Mb connection
+* 2.7x-3.9x reduction in latency when executed in the same data center (US East)
+* 320x reduction in bytes transfered (lower bandwidth requirements)
+* 25-27% more consumption of request units (RUs)
+
 
 ## Source code ##
 
