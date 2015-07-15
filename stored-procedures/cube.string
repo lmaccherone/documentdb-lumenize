@@ -586,7 +586,11 @@ function (memo) {
     functions.average = function(values, oldResult, newValues, dependentValues, prefix) {
       var count, ref, sum;
       ref = _populateDependentValues(values, functions.average.dependencies, dependentValues, prefix), count = ref.count, sum = ref.sum;
-      return sum / count;
+      if (count === 0) {
+        return null;
+      } else {
+        return sum / count;
+      }
     };
     functions.average.dependencies = ['count', 'sum'];
 
@@ -627,7 +631,13 @@ function (memo) {
     functions.variance = function(values, oldResult, newValues, dependentValues, prefix) {
       var count, ref, sum, sumSquares;
       ref = _populateDependentValues(values, functions.variance.dependencies, dependentValues, prefix), count = ref.count, sum = ref.sum, sumSquares = ref.sumSquares;
-      return (count * sumSquares - sum * sum) / (count * (count - 1));
+      if (count === 0) {
+        return null;
+      } else if (count === 1) {
+        return 0;
+      } else {
+        return (count * sumSquares - sum * sum) / (count * (count - 1));
+      }
     };
     functions.variance.dependencies = ['count', 'sum', 'sumSquares'];
 
@@ -674,6 +684,9 @@ function (memo) {
         var d, k, n, sortfunc, vLength;
         if (values == null) {
           values = _populateDependentValues(values, ['values'], dependentValues, prefix).values;
+        }
+        if (values.length === 0) {
+          return null;
         }
         sortfunc = function(a, b) {
           return a - b;
@@ -1228,12 +1241,22 @@ function (memo) {
             requiredFieldsObject[m.field] = null;
           }
         }
+        this.requiredMetricsFields = (function() {
+          var results;
+          results = [];
+          for (key in requiredFieldsObject) {
+            value = requiredFieldsObject[key];
+            results.push(key);
+          }
+          return results;
+        })();
+        requiredFieldsObject = {};
         ref4 = this.config.dimensions;
         for (q = 0, len4 = ref4.length; q < len4; q++) {
           d = ref4[q];
           requiredFieldsObject[d.field] = null;
         }
-        this.requiredFields = (function() {
+        this.requiredDimensionFields = (function() {
           var results;
           results = [];
           for (key in requiredFieldsObject) {
@@ -1386,7 +1409,7 @@ function (memo) {
         @param {Object[]} facts An Array of facts to be aggregated into OLAPCube. Each fact is a Map where the keys are the field names
           and the values are the field values (e.g. `{field1: 'a', field2: 5}`).
          */
-        var d, dirtyRow, expandedFactArray, fact, fieldName, filterString, j, l, len1, len2, len3, len4, missingFields, o, q, ref, ref1, ref2;
+        var d, dirtyRow, expandedFactArray, fact, fieldName, filterString, j, l, len1, len2, len3, len4, o, q, ref, ref1, ref2;
         this.dirtyRows = {};
         if (utils.type(facts) === 'array') {
           if (facts.length <= 0) {
@@ -1416,21 +1439,10 @@ function (memo) {
         }
         for (o = 0, len3 = facts.length; o < len3; o++) {
           fact = facts[o];
-          missingFields = this.calculateMissingFields(fact);
-          if (missingFields.length === 0) {
-            this.currentValues = {};
-            expandedFactArray = this._expandFact(fact);
-            this._mergeExpandedFactArray(expandedFactArray);
-          } else {
-            if (memo.warnings == null) {
-              memo.warnings = [];
-            }
-            memo.warnings.push({
-              type: 'Missing fields',
-              missingFields: missingFields,
-              fact: fact
-            });
-          }
+          this.addMissingFields(fact);
+          this.currentValues = {};
+          expandedFactArray = this._expandFact(fact);
+          this._mergeExpandedFactArray(expandedFactArray);
         }
         if (this.config.deriveFieldsOnOutput != null) {
           ref1 = this.dirtyRows;
@@ -1452,17 +1464,23 @@ function (memo) {
         return this;
       };
 
-      OLAPCube.prototype.calculateMissingFields = function(fact) {
-        var field, j, len1, missingFields, ref;
-        missingFields = [];
-        ref = this.requiredFields;
+      OLAPCube.prototype.addMissingFields = function(fact) {
+        var field, j, l, len1, len2, ref, ref1;
+        ref = this.requiredMetricsFields;
         for (j = 0, len1 = ref.length; j < len1; j++) {
           field = ref[j];
-          if (fact[field] == null) {
-            missingFields.push(field);
+          if (fact[field] === void 0) {
+            fact[field] = null;
           }
         }
-        return missingFields;
+        ref1 = this.requiredDimensionFields;
+        for (l = 0, len2 = ref1.length; l < len2; l++) {
+          field = ref1[l];
+          if (fact[field] == null) {
+            fact[field] = '<missing>';
+          }
+        }
+        return fact;
       };
 
       OLAPCube.prototype.getCells = function(filterObject) {
