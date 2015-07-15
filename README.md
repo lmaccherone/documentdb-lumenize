@@ -310,6 +310,7 @@ Lumenize.TimeInStateCalculator (and other calculators in Lumenize) use this tech
 
 ## Changelog ##
 
+* 0.2.4 - 2015-07-14 - Upgrade OLAPCube to deal with missing dimension and metrics values
 * 0.2.3 - 2015-07-12 - Made the cube available from `require('documentdb-lumenize).cube`
 * 0.2.2 - 2015-07-09 - Documentation upgrades and more testing
 * 0.2.1 - 2015-07-07 - Documentation tweaks

@@ -210,20 +210,13 @@ exports.OLAPTest =
     expectedResult = [
       [ 'id', '_count', 'value_sum' ],
       [ 1, 1, 10 ],
-      [ null, 3, 60 ],
+      [ null, 4, 160 ],
+      [ '<missing>', 1, 100 ],
       [ 2, 1, 20 ],
       [ 3, 1, 30 ]
     ]
 
     test.deepEqual(mock.lastBody.savedCube.cellsAsCSVStyleArray, expectedResult)
-
-    expectedWarnings = [{
-      type: 'Missing fields',
-      missingFields: [ 'id' ],
-      fact: { id: null, value: 100 }
-    }]
-
-    test.deepEqual(mock.lastBody.warnings, expectedWarnings)
 
     test.done()
 
@@ -248,14 +241,6 @@ exports.OLAPTest =
 
     mock.package.cube({cubeConfig})
 
-    expectedWarnings = [{
-      type: 'Missing fields',
-      missingFields: [ 'id' ],
-      fact: {value: 100 }
-    }]
-
-    test.deepEqual(mock.lastBody.warnings, expectedWarnings)
-
     test.done()
 
   missingMetricValueTest: (test) ->
@@ -279,14 +264,6 @@ exports.OLAPTest =
 
     mock.package.cube({cubeConfig})
 
-    expectedWarnings = [{
-      type: 'Missing fields',
-      missingFields: [ 'value' ],
-      fact: { id: 1, value: null }
-    }]
-
-    test.deepEqual(mock.lastBody.warnings, expectedWarnings)
-
     test.done()
 
   missingMetricFieldTest: (test) ->
@@ -309,13 +286,5 @@ exports.OLAPTest =
     cubeConfig.keepTotals = true
 
     mock.package.cube({cubeConfig})
-
-    expectedWarnings = [{
-      type: 'Missing fields',
-      missingFields: [ 'value' ],
-      fact: { id: 1}
-    }]
-
-    test.deepEqual(mock.lastBody.warnings, expectedWarnings)
 
     test.done()

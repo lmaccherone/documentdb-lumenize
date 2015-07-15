@@ -446,7 +446,10 @@ cube = (memo) ->
   ###
   functions.average = (values, oldResult, newValues, dependentValues, prefix) ->
     {count, sum} = _populateDependentValues(values, functions.average.dependencies, dependentValues, prefix)
-    return sum / count
+    if count is 0
+      return null
+    else
+      return sum / count
 
   functions.average.dependencies = ['count', 'sum']
 
@@ -483,7 +486,12 @@ cube = (memo) ->
   ###
   functions.variance = (values, oldResult, newValues, dependentValues, prefix) ->
     {count, sum, sumSquares} = _populateDependentValues(values, functions.variance.dependencies, dependentValues, prefix)
-    return (count * sumSquares - sum * sum) / (count * (count - 1))
+    if count is 0
+      return null
+    else if count is 1
+      return 0
+    else
+      return (count * sumSquares - sum * sum) / (count * (count - 1))
 
   functions.variance.dependencies = ['count', 'sum', 'sumSquares']
 
@@ -529,6 +537,8 @@ cube = (memo) ->
     f = (values, oldResult, newValues, dependentValues, prefix) ->
       unless values?
         {values} = _populateDependentValues(values, ['values'], dependentValues, prefix)
+      if values.length is 0
+        return null
       sortfunc = (a, b) ->
         return a - b
       vLength = values.length
@@ -1020,9 +1030,11 @@ cube = (memo) ->
       for m in @config.metrics
         if m.field?.length > 0  # Should only be false if function is count
           requiredFieldsObject[m.field] = null
+      @requiredMetricsFields = (key for key, value of requiredFieldsObject)
+      requiredFieldsObject = {}
       for d in @config.dimensions
         requiredFieldsObject[d.field] = null
-      @requiredFields = (key for key, value of requiredFieldsObject)
+      @requiredDimensionFields = (key for key, value of requiredFieldsObject)
 
       @summaryMetrics = {}
 
@@ -1148,15 +1160,10 @@ cube = (memo) ->
             fact[fieldName] = d.f(fact)
 
       for fact in facts
-        missingFields = @calculateMissingFields(fact)
-        if missingFields.length is 0
-          @currentValues = {}
-          expandedFactArray = @_expandFact(fact)
-          @_mergeExpandedFactArray(expandedFactArray)
-        else
-          unless memo.warnings?
-            memo.warnings = []
-          memo.warnings.push({type: 'Missing fields', missingFields, fact})
+        @addMissingFields(fact)
+        @currentValues = {}
+        expandedFactArray = @_expandFact(fact)
+        @_mergeExpandedFactArray(expandedFactArray)
 
       # deriveFieldsOnOutput for @dirtyRows
       if @config.deriveFieldsOnOutput?
@@ -1171,12 +1178,14 @@ cube = (memo) ->
 
       return this
 
-    calculateMissingFields: (fact) ->
-      missingFields = []
-      for field in @requiredFields
+    addMissingFields: (fact) ->
+      for field in @requiredMetricsFields
+        if fact[field] is undefined
+          fact[field] = null
+      for field in @requiredDimensionFields
         unless fact[field]?
-          missingFields.push(field)
-      return missingFields
+          fact[field] = '<missing>'
+      return fact
 
     getCells: (filterObject) ->
       ###
