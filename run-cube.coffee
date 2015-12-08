@@ -1,9 +1,9 @@
 fs = require('fs')
-documentDBUtils = require('documentdb-utils')
+{WrappedClient} = require('documentdb-utils')
 {OLAPCube} = require('lumenize')
 
-{cube} = require('./stored-procedures/cube')
-#cube = fs.readFileSync('./stored-procedures/cube.string', 'utf8')
+{cube} = require('./sprocs/cube')
+#cube = fs.readFileSync('./sprocs/cube.string', 'utf8')
 
 dimensions = [
   {field: "ProjectHierarchy", type: 'hierarchy'},

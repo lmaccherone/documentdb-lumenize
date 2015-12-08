@@ -34,7 +34,7 @@ UPDATE: I have been able to run some latency and throughput performance testing 
 
 * Automatically send back an additional output with just an array for the one metric specified by a simple groupBy.
 * Syntactic sugar for single-metric pivot table. Note, a pivot table is just a two-dimensional cube, so you can do them now. It just might be nice to have a convenient way for simple aggregations.
-* Allow for parameterization of filterQuery
+* Example code for .NET usage
 * deriveFieldsOnOutput/Input functionality using string function names.
 * A way to specify a slice, min, max, etc. as the output. This would be especially useful for folks who are not using node.js where they can simply reload the savedCube locally to get that functionality.
 * Maybe a C# version of the client-side functionality that I now have by using the full Lumenize.OLAPCube.
@@ -45,61 +45,102 @@ UPDATE: I have been able to run some latency and throughput performance testing 
 
 ## Install ##
 
-`npm install -save documentdb-lumenize`
+### Node.js ###
 
-or
+To install use:
+ 
+    npm install -save documentdb-lumenize
+    
+To load the sproc to your collection:
 
-`bower install -save documentdb-lumenize`
+    {cube} = require('./sprocs/cube')
+    client.upsertStoredProcedure(collectionLink, {id: 'cube', body: cube})
+    
+### Bower ###
 
-Note, the bower alternative only installs the stored-procedures in `.string` form.
+    bower install -save documentdb-lumenize
 
+Note, the bower alternative only installs the sprocs in `.string` form. You can upload it to your collection like this:
 
-## Usage ##
+    cube = require('fs').readFileSync('./sprocs/cube.string', 'utf8')
+    client.upsertStoredProcedure(collectionLink, {id: 'cube', body: cube})
 
-### Pushing the stored procedure(s) into DocumentDB and executing it ###
+### .NET ###
 
-There are several ways to get the stored procedure(s) into your DocumentationDB collection and execute it. 
+You can either fetch the cube.string file from this repository (or via bower) and put it in your project or you can load
+the sproc into your collection directly from GitHub as follows:
 
-* When using node.js, the easiest is to use documentdb-utils, but there are two ways to even do that:
+    Uri uri = new System.Uri("https://raw.githubusercontent.com/lmaccherone/documentdb-lumenize/master/sprocs/cube.string");
+    WebClient wc = new WebClient();
+    Stream stream = wc.OpenRead(uri);
+    StreamReader sr = new StreamReader(stream);
+    string sprocString = await sr.ReadToEndAsync();
+    stream.Close();
+    
+    sproc = await client.UpsertStoredProcedureAsync(documentCollection.SelfLink,
+        new StoredProcedure
+        {
+            Id = "cube",
+            Body = sprocString
+        });
 
-  * `require` the stored procedure and pass it in to documentdb-utils with the `storedProcedureJS` config field.
+Keep in mind, the above code will always get the latest version from GitHub. If you want to test before updates are used,
+then you'll want to download it into your project and upsertStoredProcedure with the contents of that cube.string file.
+
+## Execute ##
+
+### Node.js ###
+
+    {OLAPCube} = require('lumenize')   # Only if you want nicely formatted output
+
+    {cube} = require('./sprocs/cube')
+    client.upsertStoredProcedure(collectionLink, {id: 'cube', body: cube}, (err, sproc) ->
+      cubeConfig = <your aggregation configuration (see below)>
+      filterQuery = 'SELECT * FROM Facts f WHERE f.id = 1'
+      memo = {cubeConfig, filterQuery}
+      
+      processResponse = (err, response) ->
+        if err?
+          throw new Error(JSON.stringify(err))
+        console.log(response.stats)
+        cube = OLAPCube.newFromSavedState(response.memo.savedCube)
+        console.log(cube.toString())  # Outputs nice pretty table
   
-          documentDBUtils = require('documentdb-utils')
-          {OLAPCube} = require('lumenize')
-    
-          {cube} = require('./stored-procedures/cube')
-          
-          cubeConfig = <your aggregation configuration (see below)>
-    
-          config =
-            databaseID: 'test-stored-procedure'
-            collectionID: 'testing-s3'
-            storedProcedureID: 'cube'
-            storedProcedureJS: cube
-            memo: {cubeConfig}
-            debug: false
-    
-          processResponse = (err, response) ->
-            if err?
-              throw new Error(JSON.stringify(err))
-            console.log(response.stats)
-            cube = OLAPCube.newFromSavedState(response.memo.savedCube)
-            console.log(cube.toString())
-    
-          documentDBUtils(config, processResponse)
-          
-  * There is a stringified version of the cube code under `stored-procedures/cube.string`. You can load this file into a String using `fs.readFileSync()` and send this string in to documentdb-utils with the `storedProcedureJS` config field.
+      executeStoredProcedure(sproc._self, memo, processResponse)
+    )
+
+Note, that if the stored procedure hits the timeout before it's done going through all of the data specified by your 
+filterQuery (or every document in the collection if no filterQuery is provided), it will return with partially aggregated 
+results and a continuation token. Merely pass back in (after delay specified `x-ms-retry-after-ms`) the memo object that 
+came back in the response body as the parameter to the next call of the stored procedure. It will take care of continuing 
+right where it left off. When using documentdb-utils.WrappedClient.executeStoredProcedure, this delay and retry logic 
+is automatically taken care of for you among other niceties.
   
-    This would basically look the same as the first example, but replace this line:
-    
-        {cube} = require('./stored-procedures/cube')
-        
-    With this line:
-    
-        cube = require('fs').readFileSync('./stored-procedures/cube.string', 'utf8')
-  
-* If you are using .NET or the REST API from some other platform, then you can load the stringified version using the file read capabilities of that platform and send it using your .NET or REST API. Note, that if the stored procedure hits the timeout before it's done
-going through all of the data specified by your filterQuery, it will return with partially aggregated results and a continuation token. Merely pass back in (after any specified `x-ms-retry-after-ms`) the memo object that came back in the response body as the parameter to the next call of the stored procedure. It will take care of continuing right where it left off. When using documentdb-utils, this delay and retry logic is automatically taken care of for you among other niceties.
+### .NET ###
+
+There is a fully worked out C# example in DocumentDB-Lumenize.cs found in the root of this repository. But the interesting
+bits are as follows:
+
+    // Create config for executing sproc. See below for all the myriad options that can be specified in the config
+    string configString = @"{
+        cubeConfig: {
+            groupBy: 'state', 
+            field: 'points', 
+            f: 'sum'
+        }, 
+        filterQuery: 'SELECT * FROM c'
+    }";
+    Object cubeConfig = JsonConvert.DeserializeObject<Object>(configString);
+    dynamic result = await client.ExecuteStoredProcedureAsync<dynamic>("dbs/dev-test-database/colls/dev-test-collection/sprocs/cube", cubeConfig);
+    Console.WriteLine(result.Response);
+
+Note, that if the stored procedure hits the timeout before it's done going through all of the data specified by your 
+filterQuery (or every document in the collection if no filterQuery is provided), it will return with partially aggregated 
+results and a continuation token. Merely pass back in (after delay specified `x-ms-retry-after-ms`) the memo object that 
+came back in the response body as the parameter to the next call of the stored procedure. It will take care of continuing 
+right where it left off.
+
+## Configure ##
 
 ### A simple group by example ###
 
@@ -114,7 +155,7 @@ Let's assume this is the only data in your collection.
 
 Now, let's call the cube with the following:
     
-    {cubeConfig: {groupBy: 'id', field: "value", f: "sum"}}
+    memo = {cubeConfig: {groupBy: 'id', field: "value", f: "sum"}}
   
 After you call the cube stored procedure, you should expect this to be in the `savedCube.cellsAsCSVStyleArray` parameter of the response. Note, the _count metric is always
 calculated even when not specified.
@@ -145,7 +186,10 @@ All of the [Lumenize aggregation functions](http://commondatastorage.googleapis.
 * `uniqueValues`
 * and, any percentile by simply using using the string `p<your-percentile>` (e.g. `p75`, which is the upper quartile)
 
-Please note that when using any metric that cannot be incrementally calculated (median and percentiles in the list above), for large aggregations, it's more efficient to use the cube with a `values` metric and calculate your median or percentile after the fact. You can call `Lumenize.functions.median(values)` for each cell in the cube that returned. The deriveFieldsOnOutput functionality of the full Lumenize.OLAPCube is not supported yet in this stored-procedure form.
+The ability to provide your own aggregation function is not supported in this sproc version of Lumenize. 
+Fetch all the data client-side and use the full Lumenize if you need that.
+
+Please note that when using any metric that cannot be incrementally calculated (median and percentiles in the list above), for large aggregations, it's more efficient to use the cube with a `values` metric and calculate your median or percentile after the fact. You can call `Lumenize.functions.median(values)` for each cell in the cube that returned. The deriveFieldsOnOutput functionality of the full Lumenize.OLAPCube is not supported yet in this stored procedure form.
 
 ### Providing a filterQuery ###
 
@@ -225,7 +269,7 @@ You can check out the [full documentation for the Lumenize OLAPCube](http://comm
     console.log(cube.getCell({Priority: 1}))
     # { ProjectHierarchy: null, Priority: 1, _count: 3, Scope: 30 }
 
-Notice how the ProjectHierarchy field value is `null`. This is because it is a total cell for Priority dimension for all ProjectHierarchy values. Think of `null` values in this context as wildcards that indicate the total fields.
+Notice how the ProjectHierarchy field value is `null`. This is because it is a total cell for Priority=1 regardless of ProjectHierarchy value. Think of `null` values in this context as wildcards that indicate the total fields.
 
 Similarly, we can get the total for all descendants of ProjectHierarchy = [1] regarless of Priority as follows:
 
@@ -310,6 +354,7 @@ Lumenize.TimeInStateCalculator (and other calculators in Lumenize) use this tech
 
 ## Changelog ##
 
+* 0.2.4 - 2015-11-08 - Added .NET example and docs. Also updated to latest version of documentdb-utils
 * 0.2.4 - 2015-07-14 - Upgrade OLAPCube to deal with missing dimension and metrics values
 * 0.2.3 - 2015-07-12 - Made the cube available from `require('documentdb-lumenize).cube`
 * 0.2.2 - 2015-07-09 - Documentation upgrades and more testing

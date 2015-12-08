@@ -1,4 +1,4 @@
-cube = (memo) ->
+module.exports = (memo) ->
 
 # utils
 
@@ -1462,5 +1462,3 @@ cube = (memo) ->
 
   query()
   return memo
-
-exports.cube = cube

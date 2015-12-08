@@ -1,12 +1,12 @@
 {
   "name": "documentdb-lumenize",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "homepage": "https://github.com/lmaccherone/documentdb-lumenize",
   "authors": [
     "Larry Maccherone"
   ],
   "ignore": [
     "/*",
-    "!stored-procedures/*.string"
+    "!sprocs/*.string"
   ]
 }

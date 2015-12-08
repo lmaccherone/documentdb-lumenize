@@ -1,6 +1,6 @@
 {
   "name": "documentdb-lumenize",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "Aggregations (Group-by, Pivot-table, and N-dimensional Cube) and Time Series Transformations as Stored Procedures in DocumentDB",
   "main": "./documentdb-lumenize",
   "scripts": {
@@ -38,10 +38,11 @@
     "coffee-script": "^1.9.2",
     "documentdb": "^1.1.0",
     "documentdb-mock": "^0.1.2",
+    "lodash": "^3.10.1",
     "nodeunit": "^0.9.1"
   },
   "dependencies": {
-    "documentdb-utils": "^0.2.5",
+    "documentdb-utils": "^0.4.6",
     "lumenize": "^0.9.8"
   }
 }

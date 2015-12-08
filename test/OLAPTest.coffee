@@ -1,7 +1,7 @@
 path = require('path')
 lumenize = require('lumenize')
 DocumentDBMock = require('documentdb-mock')
-mock = new DocumentDBMock(path.join(__dirname, '..', 'stored-procedures', 'cube'))
+mock = new DocumentDBMock(path.join(__dirname, '..', 'sprocs', 'cube'))
 
 exports.OLAPTest =
 
@@ -15,7 +15,7 @@ exports.OLAPTest =
 
     cubeConfig = {groupBy: 'id', field: "value", f: "sum"}
 
-    mock.package.cube({cubeConfig})
+    mock.package({cubeConfig})
 
     expectedResult = [
       [ 'id', '_count', 'value_sum' ],
@@ -37,7 +37,7 @@ exports.OLAPTest =
     cubeConfig = {groupBy: 'id', field: "value", f: "sum"}
     filterQuery = 'SELECT * FROM Facts f WHERE f.id = 1'
 
-    mock.package.cube({cubeConfig, filterQuery})
+    mock.package({cubeConfig, filterQuery})
 
     expectedResult = [
       [ 'id', '_count', 'value_sum' ],
@@ -68,7 +68,7 @@ exports.OLAPTest =
     config = {dimensions, metrics}
     config.keepTotals = true
 
-    mock.package.cube({cubeConfig: config})
+    mock.package({cubeConfig: config})
     cube = new lumenize.OLAPCube.newFromSavedState(mock.lastBody.savedCube)
 
     expected = {
@@ -143,7 +143,7 @@ exports.OLAPTest =
       |["1","2","3"] ||     7 |     7      |
     '''
 
-    mock.package.cube({cubeConfig: config})
+    mock.package({cubeConfig: config})
     cube = new lumenize.OLAPCube.newFromSavedState(mock.lastBody.savedCube)
 
     test.deepEqual(expectedSum, cube.toString(undefined, undefined, 'f3_sum'))
@@ -172,7 +172,7 @@ exports.OLAPTest =
     cubeConfig = {dimensions, metrics}
     cubeConfig.keepTotals = true
 
-    mock.package.cube({cubeConfig})
+    mock.package({cubeConfig})
 
     expectedResult = [
       [ 'id', '_count', 'value_sum' ],
@@ -205,7 +205,7 @@ exports.OLAPTest =
     cubeConfig = {dimensions, metrics}
     cubeConfig.keepTotals = true
 
-    mock.package.cube({cubeConfig})
+    mock.package({cubeConfig})
 
     expectedResult = [
       [ 'id', '_count', 'value_sum' ],
@@ -239,7 +239,7 @@ exports.OLAPTest =
     cubeConfig = {dimensions, metrics}
     cubeConfig.keepTotals = true
 
-    mock.package.cube({cubeConfig})
+    mock.package({cubeConfig})
 
     test.done()
 
@@ -262,7 +262,7 @@ exports.OLAPTest =
     cubeConfig = {dimensions, metrics}
     cubeConfig.keepTotals = true
 
-    mock.package.cube({cubeConfig})
+    mock.package({cubeConfig})
 
     test.done()
 
@@ -285,6 +285,6 @@ exports.OLAPTest =
     cubeConfig = {dimensions, metrics}
     cubeConfig.keepTotals = true
 
-    mock.package.cube({cubeConfig})
+    mock.package({cubeConfig})
 
     test.done()

@@ -1,6 +1,7 @@
 fs = require('fs')
 path = require('path')
 spawnSync = require('child_process').spawnSync
+_ = require('lodash')
 
 runSync = (command, options, next) ->
   {stderr, stdout} = runSyncRaw(command, options)
@@ -31,15 +32,24 @@ task('compile', 'Compile CoffeeScript source files to JavaScript', () ->
     files = ("#{file}" for file in contents when (file.indexOf('.coffee') > 0))
     runSync('coffee', ['-c'].concat(files))
   )
-  if fs.existsSync('stored-procedures')
-    fs.readdir('stored-procedures', (err, contents) ->
+  if fs.existsSync('sprocs')
+    fs.readdir('sprocs', (err, contents) ->
       for file in contents when (file.indexOf('.coffee') > 0)
         baseName = file.substr(0, file.indexOf('.coffee'))
-        filePath = path.join(__dirname, 'stored-procedures', baseName)
-        sprocJS = require(filePath)[baseName]
-        outFilePath = path.join(__dirname, 'stored-procedures', baseName + '.string')
+        filePath = path.join(__dirname, 'sprocs', baseName)
+        sprocJS = require(filePath)
+        outFilePath = path.join(__dirname, 'sprocs', baseName + '.string')
         fs.writeFileSync(outFilePath, sprocJS.toString(), 'utf8')
     )
+)
+
+task('clean', 'Deletes .js and .map files', () ->
+  folders = ['.', 'sprocs']
+  for folder in folders
+    pathToClean = path.join(__dirname, folder)
+    contents = fs.readdirSync(pathToClean)
+    for file in contents when (_.endsWith(file, '.js') or _.endsWith(file, '.map'))
+      fs.unlinkSync(path.join(pathToClean, file))
 )
 
 task('test', 'UNIMPLEMENTED - Run the CoffeeScript test suite with nodeunit', () ->
@@ -81,6 +91,7 @@ task('publish', 'Publish to npm and add git tags', () ->
           console.log('creating git tag')
           runSyncNoExit("git", ["tag", "v#{require('./package.json').version}"])
           runSyncNoExit("git", ["push", "--tags"])
+          runSync('cake', ['clean'])
       else
         console.error('Origin and master out of sync. Not publishing.')
     else

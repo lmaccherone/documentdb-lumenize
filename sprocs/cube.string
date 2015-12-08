@@ -1743,7 +1743,7 @@ function (memo) {
         @param {String/Object} p A String or Object from a previously saved OLAPCube state
         @return {OLAPCube}
          */
-        var c, d, fieldValue, filterString, j, l, len1, len2, len3, o, ref, ref1, ref2;
+        var c, cube, d, fieldValue, filterString, j, l, len1, len2, len3, o, ref, ref1, ref2;
         if (utils.type(p) === 'string') {
           p = JSON.parse(p);
         }

@@ -1,1 +1,1 @@
-exports.cube = require('./stored-procedures/cube').cube
+exports.cube = require('./sprocs/cube').cube
