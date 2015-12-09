@@ -27,17 +27,18 @@ UPDATE: I have been able to run some latency and throughput performance testing 
   
 ### Working ###
 
-* Fast, light, flexible OLAP Cube with hierarchical rollup support running inside your DocumentDB collections for super-fast results.
-* Syntactic sugar for single-metric/single-dimension group by.
+* Fast, light, flexible OLAP Cube with hierarchical rollup support running inside your DocumentDB collections for super-fast results
+* Syntactic sugar for single-metric/single-dimension group by
+* Fully functional C# .NET example
 
 ### Wish list ###
 
-* Automatically send back an additional output with just an array for the one metric specified by a simple groupBy.
+* Unify the codebase with Lumenize by utilizing the expandSproc functionality of documentdb-utils
+* Automatically send back an additional output with just an array for the one metric specified by a simple groupBy
 * Syntactic sugar for single-metric pivot table. Note, a pivot table is just a two-dimensional cube, so you can do them now. It just might be nice to have a convenient way for simple aggregations.
-* Example code for .NET usage
-* deriveFieldsOnOutput/Input functionality using string function names.
+* deriveFieldsOnOutput/Input functionality using stringified functions
 * A way to specify a slice, min, max, etc. as the output. This would be especially useful for folks who are not using node.js where they can simply reload the savedCube locally to get that functionality.
-* Maybe a C# version of the client-side functionality that I now have by using the full Lumenize.OLAPCube.
+* Maybe a C# version of the client-side functionality that we have on the node.js side with Lumenize.OLAPCube. At the very least pretty table output would be nice.
 * Turn DocumentDB into a powerful time-series database and analysis engine. The Lumenize calculators do their thing by calling the Lumenize OLAPCube so it should be easy to get them to run on top of the stored procedure version of the OLAP Cube.
   * TimeSeriesCalculator - Show how aggregations changed over time. Visualize cumulative flow.
   * TimeInStateCalculator - See how long your entities spend in certain states. Calculate the ratio of wait to touch time. Find 98 percentile of lead time to set service level agreements.
@@ -53,7 +54,7 @@ To install use:
     
 To load the sproc to your collection:
 
-    {cube} = require('./sprocs/cube')
+    cube = require('../sprocs/cube')
     client.upsertStoredProcedure(collectionLink, {id: 'cube', body: cube})
     
 ### Bower ###
@@ -91,23 +92,51 @@ then you'll want to download it into your project and upsertStoredProcedure with
 
 ### Node.js ###
 
+In CoffeeScript
+
     {OLAPCube} = require('lumenize')   # Only if you want nicely formatted output
 
-    {cube} = require('./sprocs/cube')
-    client.upsertStoredProcedure(collectionLink, {id: 'cube', body: cube}, (err, sproc) ->
-      cubeConfig = <your aggregation configuration (see below)>
-      filterQuery = 'SELECT * FROM Facts f WHERE f.id = 1'
+    cube = require('../sprocs/cube')
+
+    client.upsertStoredProcedure(collectionLink, {id: 'cube', body: cube}, (err, result) ->
+      if err?
+        throw new Error("Error loading cube")
+      console.log("Sproc cube loaded to collection")
+
+      filterQuery = 'SELECT * FROM Facts f WHERE f.Priority = 1'
+      cubeConfig = {groupBy: 'state', field: 'points', f: 'sum'}  # See below for more advanced configuration
       memo = {cubeConfig, filterQuery}
-      
-      processResponse = (err, response) ->
-        if err?
-          throw new Error(JSON.stringify(err))
-        console.log(response.stats)
+      sprocLink = collectionLink + '/sprocs/cube'
+      client.executeStoredProcedure(sprocLink, memo, (err, response) ->
         cube = OLAPCube.newFromSavedState(response.memo.savedCube)
         console.log(cube.toString())  # Outputs nice pretty table
-  
-      executeStoredProcedure(sproc._self, memo, processResponse)
+      )
     )
+    
+In JavaScript
+    
+    var OLAPCube, cube;
+    
+    OLAPCube = require('lumenize').OLAPCube;
+    
+    cube = require('../sprocs/cube');
+    
+    client.upsertStoredProcedure(collectionLink, {id: 'cube', body: cube}, function(err, result) {
+      var cubeConfig, filterQuery, memo, sprocLink;
+      if (err != null) {
+       throw new Error("Error loading cube");
+      }
+      console.log("Sproc cube loaded to collection");
+      
+      filterQuery = 'SELECT * FROM Facts f WHERE f.Priority = 1';
+      cubeConfig = {groupBy: 'state', field: 'points', f: 'sum'};
+      memo = {cubeConfig: cubeConfig, filterQuery: filterQuery};
+      sprocLink = collectionLink + '/sprocs/cube';
+      return client.executeStoredProcedure(sprocLink, memo, function(err, response) {
+       cube = OLAPCube.newFromSavedState(response.memo.savedCube);
+       console.log(cube.toString());
+      });
+    });
 
 Note, that if the stored procedure hits the timeout before it's done going through all of the data specified by your 
 filterQuery (or every document in the collection if no filterQuery is provided), it will return with partially aggregated 
@@ -118,7 +147,7 @@ is automatically taken care of for you among other niceties.
   
 ### .NET ###
 
-There is a fully worked out C# example in DocumentDB-Lumenize.cs found in the root of this repository. But the interesting
+There is a fully functional C# .NET example in DocumentDB-Lumenize.cs found in the root of this repository. But the interesting
 bits are as follows:
 
     // Create config for executing sproc. See below for all the myriad options that can be specified in the config
@@ -130,8 +159,8 @@ bits are as follows:
         }, 
         filterQuery: 'SELECT * FROM c'
     }";
-    Object cubeConfig = JsonConvert.DeserializeObject<Object>(configString);
-    dynamic result = await client.ExecuteStoredProcedureAsync<dynamic>("dbs/dev-test-database/colls/dev-test-collection/sprocs/cube", cubeConfig);
+    Object config = JsonConvert.DeserializeObject<Object>(configString);
+    dynamic result = await client.ExecuteStoredProcedureAsync<dynamic>("dbs/db1/colls/coll1/sprocs/cube", config);
     Console.WriteLine(result.Response);
 
 Note, that if the stored procedure hits the timeout before it's done going through all of the data specified by your 
@@ -366,8 +395,6 @@ Lumenize.TimeInStateCalculator (and other calculators in Lumenize) use this tech
 ## Contributing to documentdb-lumenize ##
 
 At this point, I have a pretty long list of things to add to documentdb-lumenize. Namely the time-series calculators from Lumenize. 
-
-Before I do all that, I want to do some performance and load testing. My theory is that moving the code to the data rather than streaming the data out over the wire for analysis will be much more efficient, but the execution semantics of stored procedures isolation as well as RU based throttling differences could possibly make it slower. I need to setup a way for testing this. Any help with this sort of load testing would be greatly appreciated.
 
 
 ## License ##
