@@ -37,7 +37,7 @@
   "devDependencies": {
     "coffee-script": "^1.9.2",
     "documentdb": "^1.1.0",
-    "documentdb-mock": "^0.1.2",
+    "documentdb-mock": "^0.3.0",
     "lodash": "^3.10.1",
     "nodeunit": "^0.9.1"
   },

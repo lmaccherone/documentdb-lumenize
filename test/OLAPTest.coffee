@@ -1,7 +1,7 @@
 path = require('path')
 lumenize = require('lumenize')
-DocumentDBMock = require('documentdb-mock')
-mock = new DocumentDBMock(path.join(__dirname, '..', 'sprocs', 'cube'))
+{ServerSideMock} = require('documentdb-mock')
+mock = new ServerSideMock(path.join(__dirname, '..', 'sprocs', 'cube'))
 
 exports.OLAPTest =
 

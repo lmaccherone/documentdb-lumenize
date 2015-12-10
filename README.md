@@ -33,7 +33,8 @@ UPDATE: I have been able to run some latency and throughput performance testing 
 
 ### Wish list ###
 
-* Unify the codebase with Lumenize by utilizing the expandSproc functionality of documentdb-utils
+* Unify the codebase with Lumenize by utilizing the expandScript functionality of documentdb-utils
+* Support sqlFromMongo style query specification. Should be easy now that I have expandScript functionality.
 * Automatically send back an additional output with just an array for the one metric specified by a simple groupBy
 * Syntactic sugar for single-metric pivot table. Note, a pivot table is just a two-dimensional cube, so you can do them now. It just might be nice to have a convenient way for simple aggregations.
 * deriveFieldsOnOutput/Input functionality using stringified functions

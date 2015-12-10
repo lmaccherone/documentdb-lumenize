@@ -1415,7 +1415,6 @@ module.exports = (memo) ->
 
 # cube
 
-  # !TODO: Need some way to tell if I'm getting close to the memory constraints?
   context = getContext()
   collection = context.getCollection()
 

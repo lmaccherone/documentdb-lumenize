@@ -18,6 +18,16 @@ namespace DocumentDB_Lumenize
         static string EndpointUrl = Environment.GetEnvironmentVariable("DOCUMENT_DB_URL");
         static string AuthorizationKey = Environment.GetEnvironmentVariable("DOCUMENT_DB_KEY");
 
+        public static async Task<dynamic> executeUntilNoContinuation(DocumentClient client, dynamic config)
+        {
+            dynamic result = await client.ExecuteStoredProcedureAsync<dynamic>("dbs/dev-test-database/colls/dev-test-collection/sprocs/cube", config);
+            config = result.Response;
+            if (config.continuation == null)
+                return config;
+            else
+                return executeUntilNoContinuation(client, config);
+        }
+
         private static async Task GetStartedDemo()
         {
             // Create a new instance of the DocumentClient
@@ -114,20 +124,24 @@ namespace DocumentDB_Lumenize
                     field: 'points',
                     f: 'sum'
                 },
-                filterQuery: 'SELECT * FROM c'
+                filterQuery: 'SELECT * FROM c',
+                continuation: null
             }";
-            Object cubeConfig = JsonConvert.DeserializeObject<Object>(configString);
-            Console.WriteLine(cubeConfig);
+            dynamic config = JsonConvert.DeserializeObject<Object>(configString);
+            Console.WriteLine(config);
 
-            dynamic result = await client.ExecuteStoredProcedureAsync<dynamic>("dbs/dev-test-database/colls/dev-test-collection/sprocs/cube", cubeConfig);
+            config = await executeUntilNoContinuation(client, config);
 
-            Console.WriteLine(result.Response);
+            Console.WriteLine();
+            Console.WriteLine("resulting config");
+            Console.WriteLine(config);
+
+            Console.WriteLine();
+            Console.WriteLine(config.continuation == null);
 
             Console.WriteLine("Press any key to continue ...");
             Console.ReadKey();
             Console.Clear();
-
-
         }
 
         public static void Main(string[] args)
