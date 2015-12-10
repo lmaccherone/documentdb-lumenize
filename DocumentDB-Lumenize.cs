@@ -20,8 +20,40 @@ namespace DocumentDB_Lumenize
 
         public static async Task<dynamic> executeUntilNoContinuation(DocumentClient client, dynamic config)
         {
-            dynamic result = await client.ExecuteStoredProcedureAsync<dynamic>("dbs/dev-test-database/colls/dev-test-collection/sprocs/cube", config);
-            config = result.Response;
+
+            dynamic result = null;
+            var queryDone = false;
+            while (!queryDone)
+            {
+                try
+                {
+                    result = await client.ExecuteStoredProcedureAsync<dynamic>("dbs/dev-test-database/colls/dev-test-collection/sprocs/cube", config);
+                    config = result.Response;
+                    queryDone = true;
+                }
+                catch (DocumentClientException documentClientException)
+                {
+                    var statusCode = (int)documentClientException.StatusCode;
+                    if (statusCode == 429 || statusCode == 503)
+                        System.Threading.Thread.Sleep(documentClientException.RetryAfter);
+                    else
+                        throw;
+                }
+                catch (AggregateException aggregateException)
+                {
+                    if (aggregateException.InnerException.GetType() == typeof(DocumentClientException))
+                    {
+
+                        var docExcep = aggregateException.InnerException as DocumentClientException;
+                        var statusCode = (int)docExcep.StatusCode;
+                        if (statusCode == 429 || statusCode == 503)
+                            System.Threading.Thread.Sleep(docExcep.RetryAfter);
+                        else
+                            throw;
+                    }
+                }
+            }
+
             if (config.continuation == null)
                 return config;
             else
