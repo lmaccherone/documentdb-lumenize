@@ -213,6 +213,8 @@ All of the [Lumenize aggregation functions](http://commondatastorage.googleapis.
 * `sumSquares`
 * `sumCubes`
 * `values`
+* `firstValue`
+* `lastValue`
 * `uniqueValues`
 * and, any percentile by simply using using the string `p<your-percentile>` (e.g. `p75`, which is the upper quartile)
 

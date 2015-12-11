@@ -26,21 +26,14 @@ runSyncRaw = (command, options) ->
   return {stderr, stdout}
 
 task('compile', 'Compile CoffeeScript source files to JavaScript', () ->
-  invoke('update-bower-version')
   process.chdir(__dirname)
-  fs.readdir('./', (err, contents) ->
+  folders = ['.', 'sprocs']
+  for folder in folders
+    pathToCompile = path.join(__dirname, folder)
+    contents = fs.readdirSync(pathToCompile)
     files = ("#{file}" for file in contents when (file.indexOf('.coffee') > 0))
-    runSync('coffee', ['-c'].concat(files))
-  )
-  if fs.existsSync('sprocs')
-    fs.readdir('sprocs', (err, contents) ->
-      for file in contents when (file.indexOf('.coffee') > 0)
-        baseName = file.substr(0, file.indexOf('.coffee'))
-        filePath = path.join(__dirname, 'sprocs', baseName)
-        sprocJS = require(filePath)
-        outFilePath = path.join(__dirname, 'sprocs', baseName + '.string')
-        fs.writeFileSync(outFilePath, sprocJS.toString(), 'utf8')
-    )
+    files = (path.join(folder, file) for file in files)
+    runSync(path.join(__dirname, 'node_modules', '.bin', 'coffee'), ['-c'].concat(files))
 )
 
 task('clean', 'Deletes .js and .map files', () ->
